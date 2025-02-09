@@ -35,6 +35,10 @@ def split_reviews(text: str):
         raise ValueError("Не удалось выделить ни одного отзыва из входного текста")
     return reviews
 
+@router.get("/ping")
+async def ping():
+    return "Привет! Я микросервис и я живой."
+
 @router.post("/summarize")
 async def summarize_endpoint(request: TextRequest):
     """
@@ -107,7 +111,7 @@ async def keywords_endpoint(request: TextRequest):
 
         keywords = kw_counter(lemmas)
 
-        # погируем успешный вызов в БД
+        # логируем успешный вызов в БД
         # log_request(endpoint="keywords", status="completed")
         return {"keywords": keywords}
 

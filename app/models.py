@@ -67,22 +67,25 @@ def get_summary(texts):
         str: сгенерированная сводка или обработанный текст
     """
     print('get_summary')
-    text = '\n\n'.join(texts)
-    if len(texts) < 4:
-        output = re.sub('\n[\n\ ]*', '\n', text)
+    if torch.cuda.is_available():
+        text = '\n\n'.join(texts)
+        if len(texts) < 4:
+            output = re.sub('\n[\n\ ]*', '\n', text)
+        else:
+            llm = LLM()
+            print('Model loaded')
+            prompt = llm.tokenizer.apply_chat_template([{
+                "role": "system",
+                "content": llm.prompt
+            }, {
+                "role": "user",
+                "content": text
+            }], tokenize=False, add_generation_prompt=True)
+            output = llm.pipe(prompt, **llm.config)
+            output = output[0]['generated_text'][len(prompt):].strip()
+        return output
     else:
-        llm = LLM()
-        print('Model loaded')
-        prompt = llm.tokenizer.apply_chat_template([{
-            "role": "system",
-            "content": llm.prompt
-        }, {
-            "role": "user",
-            "content": text
-        }], tokenize=False, add_generation_prompt=True)
-        output = llm.pipe(prompt, **llm.config)
-        output = output[0]['generated_text'][len(prompt):].strip()
-    return output
+        return "нет GPU - нет и саммари"
 
 
 def text_preproc(text: str, token_pattern: str = r'(?:не\ |ни\ |нет\ |\b)[Ё-ё]{4,}', stop_words=None) -> str:
