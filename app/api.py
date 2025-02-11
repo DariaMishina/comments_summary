@@ -4,9 +4,9 @@ import pandas as pd
 import nltk
 from pydantic import BaseModel
 
-from models import text_preproc, get_representative_texts, get_summary, kw_counter
-from tasks import run_model_inference  #TODO - сейчас просто такая же логика как в обычных эндпоинтах только в одном месте(саммари + ключевые), надо придумать что-то еще для очереди)
-# from database import log_request  
+from app.models import text_preproc, get_representative_texts, get_summary, kw_counter
+from app.tasks import run_model_inference  #TODO - сейчас просто такая же логика как в обычных эндпоинтах только в одном месте(саммари + ключевые), надо придумать что-то еще для очереди)
+from app.database import log_request  
 
 router = APIRouter()
 
@@ -37,7 +37,8 @@ def split_reviews(text: str):
 
 @router.get("/ping")
 async def ping():
-    return "Привет! Я микросервис и я живой."
+    log_request(endpoint="ping", status="completed")
+    return {"ping": "Привет! Я микросервис и я живой."}
 
 @router.post("/summarize")
 async def summarize_endpoint(request: TextRequest):
@@ -76,11 +77,11 @@ async def summarize_endpoint(request: TextRequest):
         summary = get_summary(rep_reviews)
 
         # логируем успешный вызов в БД
-        # log_request(endpoint="summarize", status="completed")
+        log_request(endpoint="summarize", status="completed")
         return {"summary": summary}
 
     except Exception as e:
-        # log_request(endpoint="summarize", status="error")
+        log_request(endpoint="summarize", status="error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -112,11 +113,11 @@ async def keywords_endpoint(request: TextRequest):
         keywords = kw_counter(lemmas)
 
         # логируем успешный вызов в БД
-        # log_request(endpoint="keywords", status="completed")
+        log_request(endpoint="keywords", status="completed")
         return {"keywords": keywords}
 
     except Exception as e:
-        # log_request(endpoint="keywords", status="error")
+        log_request(endpoint="keywords", status="error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -136,8 +137,8 @@ async def inference_endpoint(request: TextRequest):
 
     try:
         task = run_model_inference.delay(request.text)
-        # log_request(endpoint="inference", status="queued", task_id=task.id)
+        log_request(endpoint="inference", status="queued", task_id=task.id)
         return {"task_id": task.id, "status": "queued"}
     except Exception as e:
-        # log_request(endpoint="inference", status="error")
+        log_request(endpoint="inference", status="error")
         raise HTTPException(status_code=500, detail=str(e))

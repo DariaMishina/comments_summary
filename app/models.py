@@ -107,12 +107,17 @@ def text_preproc(text: str, token_pattern: str = r'(?:не\ |ни\ |нет\ |\b)
     """
     if not stop_words:
         stop_words = set()
-    text = ''.join(mystem.lemmatize(text))
-    tokens = re.findall(token_pattern, text)
-    tokens = [t.replace(' ', '_') for t in tokens
-              if t.split()[-1] not in stop_words]
-    text = ' '.join(tokens)
-    return text
+    try:
+        text = ''.join(mystem.lemmatize(text))
+        # text = text
+        tokens = re.findall(token_pattern, text)
+        tokens = [t.replace(' ', '_') for t in tokens
+                if t.split()[-1] not in stop_words]
+        text = ' '.join(tokens)
+        return text
+    except:
+        return text
+
 
 def compute_bertopic_coherence_values(docs, limit, start=2, step=3):
     """

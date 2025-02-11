@@ -2,9 +2,9 @@ from celery import Celery
 import nltk
 
 
-from models import get_summary, kw_counter, text_preproc, get_representative_texts
-from database import update_task_status
-from config import CELERY_BROKER_URL
+from app.models import get_summary, kw_counter, text_preproc, get_representative_texts
+from app.database import update_task_status
+from app.config import CELERY_BROKER_URL
 
 # инициализируем сelery с использованием rabbitmq TODO заменить подключение 
 # TODO - сейчас просто такая же логика как в обычных эндпоинтах только в одном месте
