@@ -31,3 +31,15 @@ def update_task_status(task_id: str, status: str):
         log.status = status
         session.commit()
     session.close()
+
+def get_task_status(task_id: str):
+    """
+    Получает статус задачи по task_id из базы данных.
+    """
+    session = SessionLocal()
+    log = session.query(RequestLog).filter_by(task_id=task_id).first()
+    session.close()
+    
+    if log:
+        return log.status
+    return None  

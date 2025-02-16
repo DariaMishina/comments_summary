@@ -13,6 +13,35 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    container_name: rabbitmq
+    hostname: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672" # основной порт для взаимодействия с сelery
+      - "15672:15672" # админка rabbit чтобы открыть в браузере
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+  
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    container_name: celery_worker
+    restart: always
+    depends_on:
+      - rabbitmq
+      - db
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/mydatabase
+      CELERY_BROKER_URL: pyamqp://guest@rabbitmq//
+      CELERY_RESULT_BACKEND: rpc://
+      PYTHONPATH: /app  
+    working_dir: /app
+    command: sh -c "celery -A app.tasks worker --loglevel=info --queues=huge_summarize_queue"
+
 
   app:
     build:
@@ -22,8 +51,11 @@ services:
     restart: always
     depends_on:
       - db
+      - rabbitmq
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/mydatabase
+      - DATABASE_URL=postgresql://user:password@db:5432/mydatabase
+      - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
+      - CELERY_RESULT_BACKEND=rpc://
     ports:
       - "8000:8000"
     volumes:
