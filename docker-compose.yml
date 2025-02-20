@@ -13,6 +13,9 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - app_network
+
   rabbitmq:
     image: "rabbitmq:3-management"
     container_name: rabbitmq
@@ -35,13 +38,12 @@ services:
       - rabbitmq
       - db
     environment:
-      DATABASE_URL: postgresql://user:password@db:5432/mydatabase
+      DATABASE_URL: postgresql://user:password@postgres_db:5432/mydatabase
       CELERY_BROKER_URL: pyamqp://guest@rabbitmq//
       CELERY_RESULT_BACKEND: rpc://
       PYTHONPATH: /app  
     working_dir: /app
     command: sh -c "celery -A app.tasks worker --loglevel=info --queues=huge_summarize_queue"
-
 
   app:
     build:
@@ -53,14 +55,45 @@ services:
       - db
       - rabbitmq
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/mydatabase
+      - DATABASE_URL=postgresql://user:password@postgres_db:5432/mydatabase
       - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
       - CELERY_RESULT_BACKEND=rpc://
+      - DEBUG=False # для работы в проде
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-    command: ["python", "app/main.py"]
+      - ./static:/app/static  # прямое монтирование локальной статики
+    networks:
+      - app_network
+    command: ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "app.main:app"] # запуск через гуникорн
+
+
+  static:
+    image: nginx:latest
+    container_name: static_server
+    volumes:
+      - ./static:/usr/share/nginx/html:ro  # прямое монтирование в nginx
+    networks:
+      - app_network
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+      - static
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html:ro  # прямое монтирование static
+    networks:
+      - app_network
 
 volumes:
   pgdata:
+
+networks:
+  app_network:
+
