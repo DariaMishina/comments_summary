@@ -151,3 +151,68 @@
     ```bash
     http://localhost/static/cat.jpg
     ```
+
+7. __Kubernetes__
+
+    1. после установки minikube (brew install kubectl, brew install minikube на MacOS) запускаем кластер с драйвером docker:
+        ```bash
+        minikube start --driver=docker
+        ```
+
+    2. собираем и загружаем docker образ в minikube
+    Поскольку Minikube использует свою docker среду, нужно загрузить образ туда
+        
+        2.1. включаем minikube docker-демон
+        ```bash
+        eval $(minikube docker-env)
+        ```
+        2.2. пересобираем Docker-образ
+        ```bash
+        docker build -t my-app:latest -f docker/Dockerfile.app .
+        ```
+        2.3. проверяем что образ появился в minikube
+        ```bash
+        docker images | grep my-
+        ```
+
+    3. Разверачиваем сервис в minikube:
+        ```bash
+        kubectl apply -f k8s/
+        ```
+        проверяем, что поды запустились:
+        ```bash
+        kubectl get pods
+        ```
+        проверяем сервис:
+        ```bash
+        kubectl get services
+        ```
+4. Запускаем 
+    minikube на MacOS (с docker драйвером) не пробрасывает NodePort на minikube ip, сервис доступен только внутри minikube, а не снаружи, не по NodePort.
+
+    ПОЭТОМУ есть 3 варианта 
+    1) использовать minikube service
+    minikube автоматически пробрасывает порт 
+    ```bash
+    minikube service app-service --url
+    ```
+    Ожидаемый ответ: http://127.0.0.1:XXXXX
+
+    ХХХХХ - временный порт, он работает, пока терминал открыт. Если закрыть терминал, доступ пропадает.
+    проверяем с нашим простым эндпоинтом 
+    ```bash
+    curl http://127.0.0.1:XXXXX/ping
+    ```
+    2) есть вариант проще без minikube service
+
+    Если нужен NodePort, который работает всегда, надо использовать kubectl port-forward:
+    ```bash
+    kubectl port-forward svc/app-service 8000:80
+    ```
+    проверяем с нашим простым эндпоинтом 
+    ```bash
+    curl http://127.0.0.1:8000/ping
+    ```
+    3) Использовать Ingress (настройка маршрутизации) - это будет сделано в следующем задании 
+
+    PS: закомментировала log_request в api.py, потому что не стала локально поднимать БД, это делала в docker compose, подниму отдельный манифест для БД в следующем задании 

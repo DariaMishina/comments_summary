@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from app.models import text_preproc, get_representative_texts, get_summary, kw_counter, load_stop_words, split_reviews
 from app.tasks import run_model_in_queue
-from app.database import log_request, get_task_status 
+# from app.database import log_request, get_task_status 
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ class TextRequest(BaseModel):
 
 @router.get("/ping")
 async def ping():
-    log_request(endpoint="ping", status="completed")
+    # log_request(endpoint="ping", status="completed")
     return {"ping": "Привет! Я микросервис и я живой."}
 
 @router.post("/summarize")
@@ -54,11 +54,11 @@ async def summarize_endpoint(request: TextRequest):
         summary = get_summary(rep_reviews)
 
         # логируем успешный вызов в БД
-        log_request(endpoint="summarize", status="completed")
+        # log_request(endpoint="summarize", status="completed")
         return {"summary": summary}
 
     except Exception as e:
-        log_request(endpoint="summarize", status="error")
+        # log_request(endpoint="summarize", status="error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -90,11 +90,11 @@ async def keywords_endpoint(request: TextRequest):
         keywords = kw_counter(lemmas)
 
         # логируем успешный вызов в БД
-        log_request(endpoint="keywords", status="completed")
+        # log_request(endpoint="keywords", status="completed")
         return {"keywords": keywords}
 
     except Exception as e:
-        log_request(endpoint="keywords", status="error")
+        # log_request(endpoint="keywords", status="error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -104,7 +104,7 @@ async def huge_summarize(request: TextRequest):
     Отправляет задачу в очередь RabbitMQ.
     """
     task = run_model_in_queue.apply_async(args=[request.text], queue='huge_summarize_queue')
-    log_request(endpoint="huge_summarize", status="submitted", task_id=task.id)
+    # log_request(endpoint="huge_summarize", status="submitted", task_id=task.id)
     return {"task_id": task.id, "status": "submitted"}
 
 @router.get("/task_status/{task_id}")
