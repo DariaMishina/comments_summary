@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: static-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: static-server
+  template:
+    metadata:
+      labels:
+        app: static-server
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          volumeMounts:
+            - name: static-volume
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: static-volume
+          hostPath:
+            path: /absolute/path/to/your/static
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: static-service
+spec:
+  selector:
+    app: static-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
