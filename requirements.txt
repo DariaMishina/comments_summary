@@ -34,6 +34,7 @@ packaging
 pandas
 pillow
 plotly
+prometheus-fastapi-instrumentator
 prompt_toolkit
 psutil
 psycopg2-binary
