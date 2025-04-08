@@ -1,8 +1,13 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import uvicorn
 from fastapi import FastAPI
 
-from api import router as api_router
-from config import DEBUG
+from app.api import router as api_router
+from app.config import DEBUG
 
 app = FastAPI(debug=DEBUG)
 

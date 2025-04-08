@@ -1,6 +1,7 @@
 import re
 from collections import Counter
-
+import nltk
+nltk.download("stopwords")
 import torch
 import pandas as pd
 from pymystem3 import Mystem
@@ -107,12 +108,17 @@ def text_preproc(text: str, token_pattern: str = r'(?:не\ |ни\ |нет\ |\b)
     """
     if not stop_words:
         stop_words = set()
-    text = ''.join(mystem.lemmatize(text))
-    tokens = re.findall(token_pattern, text)
-    tokens = [t.replace(' ', '_') for t in tokens
-              if t.split()[-1] not in stop_words]
-    text = ' '.join(tokens)
-    return text
+    try:
+        text = ''.join(mystem.lemmatize(text))
+        # text = text
+        tokens = re.findall(token_pattern, text)
+        tokens = [t.replace(' ', '_') for t in tokens
+                if t.split()[-1] not in stop_words]
+        text = ' '.join(tokens)
+        return text
+    except:
+        return text
+
 
 def compute_bertopic_coherence_values(docs, limit, start=2, step=3):
     """
@@ -229,3 +235,25 @@ def kw_counter(texts):
     words = ' '.join(texts).split()
     counter = Counter(words)
     return counter.most_common(10)
+
+def load_stop_words():
+    """
+    Загружает список стоп-слов из CSV и nltk.
+    Если CSV не найден, используется только nltk.
+    """
+    try:
+        stop_words_csv = pd.read_csv('src/stop_words.csv')['word'].to_list()
+    except Exception:
+        stop_words_csv = []
+    stop_words_nltk = nltk.corpus.stopwords.words("russian")
+    return set(stop_words_csv + stop_words_nltk)
+
+def split_reviews(text: str):
+    """
+    Разбивает входной текст на список отзывов по переводам строки.
+    Отфильтровывает пустые строки.
+    """
+    reviews = [line.strip() for line in text.splitlines() if line.strip()]
+    if not reviews:
+        raise ValueError("Не удалось выделить ни одного отзыва из входного текста")
+    return reviews

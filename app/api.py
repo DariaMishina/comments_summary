@@ -1,48 +1,26 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 import pandas as pd
-import nltk
 from pydantic import BaseModel
 
-from models import text_preproc, get_representative_texts, get_summary, kw_counter
-from tasks import run_model_inference  #TODO - сейчас просто такая же логика как в обычных эндпоинтах только в одном месте(саммари + ключевые), надо придумать что-то еще для очереди)
-# from database import log_request  
+from app.models import text_preproc, get_representative_texts, get_summary, kw_counter, load_stop_words, split_reviews
+from app.tasks import run_model_in_queue
+# from app.database import log_request, get_task_status 
 
 router = APIRouter()
 
 class TextRequest(BaseModel):
     text: str
 
-def load_stop_words():
-    """
-    Загружает список стоп-слов из CSV и nltk.
-    Если CSV не найден, используется только nltk.
-    """
-    try:
-        stop_words_csv = pd.read_csv('src/stop_words.csv')['word'].to_list()
-    except Exception:
-        stop_words_csv = []
-    stop_words_nltk = nltk.corpus.stopwords.words("russian")
-    return set(stop_words_csv + stop_words_nltk)
-
-def split_reviews(text: str):
-    """
-    Разбивает входной текст на список отзывов по переводам строки.
-    Отфильтровывает пустые строки.
-    """
-    reviews = [line.strip() for line in text.splitlines() if line.strip()]
-    if not reviews:
-        raise ValueError("Не удалось выделить ни одного отзыва из входного текста")
-    return reviews
-
 @router.get("/ping")
 async def ping():
-    return "Привет! Я микросервис и я живой."
+    # log_request(endpoint="ping", status="completed")
+    return {"ping": "Привет! Я микросервис и я живой."}
 
 @router.post("/summarize")
 async def summarize_endpoint(request: TextRequest):
     """
-    Эндпоинт для получения краткого суммарного описания отзывов.
+    Эндпоинт для получения краткого саммари отзывов.
 
     Входные данные:
       - text: строка, содержащая отзывы (каждый отзыв — с новой строки)
@@ -52,8 +30,8 @@ async def summarize_endpoint(request: TextRequest):
       2. Загружает стоп-слова.
       3. Для каждого отзыва получает лемматизированный вариант с помощью text_preproc.
       4. Пытается вычислить репрезентативные отзывы с помощью get_representative_texts.
-         Если возникает ошибка, берутся первые 15 отзывов.
-      5. Вызывается функция get_summary для получения суммарного описания.
+         Если возникает ошибка, берутся первые 5 отзывов.
+      5. Вызывается функция get_summary для получения саммари.
       6. Логируется успешный вызов или ошибка в БД.
     """
     if not request.text:
@@ -120,24 +98,21 @@ async def keywords_endpoint(request: TextRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/inference")
-async def inference_endpoint(request: TextRequest):
+@router.post("/huge_summarize")
+async def huge_summarize(request: TextRequest):
     """
-    Эндпоинт для асинхронного запуска инференса (обработки отзывов) с использованием Celery.
-    
-    Логика:
-      1. Проверяется, что параметр text не пустой.
-      2. Задача на обработку текста ставится в очередь через Celery.
-      3. Сохраняется информация о постановке задачи (например, статус "queued") в базу данных.
-      4. Клиенту возвращается идентификатор задачи (task_id) для дальнейшего отслеживания статуса.
+    Отправляет задачу в очередь RabbitMQ.
     """
-    if not request.text:
-        raise HTTPException(status_code=400, detail="Параметр 'text' не может быть пустым.")
+    task = run_model_in_queue.apply_async(args=[request.text], queue='huge_summarize_queue')
+    # log_request(endpoint="huge_summarize", status="submitted", task_id=task.id)
+    return {"task_id": task.id, "status": "submitted"}
 
-    try:
-        task = run_model_inference.delay(request.text)
-        # log_request(endpoint="inference", status="queued", task_id=task.id)
-        return {"task_id": task.id, "status": "queued"}
-    except Exception as e:
-        # log_request(endpoint="inference", status="error")
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/task_status/{task_id}")
+async def get_task_status_endpoint(task_id: str):
+    """
+    Получение статуса задачи по task_id.
+    """
+    status = get_task_status(task_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"task_id": task_id, "status": status}
