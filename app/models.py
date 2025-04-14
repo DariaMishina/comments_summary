@@ -242,7 +242,7 @@ def load_stop_words():
     Если CSV не найден, используется только nltk.
     """
     try:
-        stop_words_csv = pd.read_csv('src/stop_words.csv')['word'].to_list()
+        stop_words_csv = pd.read_csv('stop_words.csv')['word'].to_list()
     except Exception:
         stop_words_csv = []
     stop_words_nltk = nltk.corpus.stopwords.words("russian")
