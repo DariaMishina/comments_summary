@@ -68,6 +68,27 @@ services:
       - app_network
     command: ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "app.main:app"] # запуск через гуникорн
 
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm_server
+    restart: unless-stopped
+    command: >
+      --model Vikhrmodels/Vikhr-YandexGPT-5-Lite-8B-it
+      --dtype half
+      --tensor_parallel_size=2
+      --gpu-memory-utilization 0.9
+    ipc: host
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    networks:
+      - app_network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   static:
     image: nginx:latest

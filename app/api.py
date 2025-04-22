@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 from pydantic import BaseModel
 
-from app.models import text_preproc, get_representative_texts, get_summary, kw_counter, load_stop_words, split_reviews
+from app.models import text_preproc, get_representative_texts, get_summary_vllm, kw_counter, load_stop_words, split_reviews
 from app.tasks import run_model_in_queue
 from app.database import log_request, get_task_status 
 
@@ -31,7 +31,7 @@ async def summarize_endpoint(request: TextRequest):
       3. Для каждого отзыва получает лемматизированный вариант с помощью text_preproc.
       4. Пытается вычислить репрезентативные отзывы с помощью get_representative_texts.
          Если возникает ошибка, берутся первые 5 отзывов.
-      5. Вызывается функция get_summary для получения саммари.
+      5. Вызывается функция get_summary_vllm для получения саммари.
       6. Логируется успешный вызов или ошибка в БД.
     """
     if not request.text:
@@ -51,7 +51,7 @@ async def summarize_endpoint(request: TextRequest):
             # если не удалось получить репрезентативные отзывы — берём первые 5 отзывов
             rep_reviews = reviews[:5]
 
-        summary = get_summary(rep_reviews)
+        summary = get_summary_vllm(rep_reviews)
 
         # логируем успешный вызов в БД
         log_request(endpoint="summarize", status="completed")
