@@ -16,8 +16,8 @@
 
 ## ключевые потоки данных
 
-    ```bash
-    Пользователь → nginx (80/443)
+```bash
+Пользователь → nginx (80/443)
         ├─ /streamlit/*  → streamlit (форма)
         │    └─ POST /api/reviews → app
         │        ├─ INSERT → Postgres
@@ -26,11 +26,11 @@
         │    └─ JSON ответ → Streamlit UI
         └─ /static/*     → static_server (картинки)
 
-    celery_worker ← RabbitMQ  → app
-    celery_worker → Postgres
-    Prometheus — pull → {app, worker, RabbitMQ, Postgres}
-    Grafana — pull → Prometheus
-    ```
+celery_worker ← RabbitMQ  → app
+celery_worker → Postgres
+Prometheus — pull → {app, worker, RabbitMQ, Postgres}
+Grafana — pull → Prometheus
+```
 ## структура проекта
 
 ### app/
