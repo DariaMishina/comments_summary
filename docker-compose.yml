@@ -90,6 +90,33 @@ services:
               count: all
               capabilities: [gpu]
 
+  vllm_lora:
+    container_name: vllm_lora_server
+    image: vllm/vllm-openai:latest
+    command: > 
+      --model Vikhrmodels/Vikhr-7B-instruct_0.4
+      --dtype=bfloat16
+      --tensor_parallel_size=2
+      --enable-lora
+      --max-lora-rank=32
+      --lora-modules='{
+          "name": "Vikhr-7B-instruct_0.4_lora_r32_medium_prompt",
+          "path": "Daria/Vikhr-7B-instruct_0.4_lora_r32_medium_prompt",
+          "base_model_name": "Vikhrmodels/Vikhr-7B-instruct_0.4"
+      }'
+    ipc: host
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    networks:
+      - app_network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
   static:
     image: nginx:latest
     container_name: static_server
