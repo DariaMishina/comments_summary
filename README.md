@@ -2,12 +2,6 @@
 
 Проект по саммаризации и извлечению ключевых слов из отзывов покупателей на товары.
 
-## TODO
-- собрать все константы в конфиг 
-- добавить тесты
-- добавить линтеры
-- попробовать deepeval для оценки качества генерации
-
 
 ## Схема сервиса 
 ![Alt text](scheme.png)
@@ -67,10 +61,14 @@ Grafana — pull → Prometheus
 - flower.yaml
 - static.yaml
 - ingress.yaml
+- grafana.yaml
+- node-exporter.yaml
+- postgres-exporter.yaml
+- prometheus.yaml
 
 
 ### root/ 
-- **docker-compose.yml**: определение всех необходимых сервисов (API, Celery, Streamlit, PostgreSQL, RabbitMQ/Redis???, Nginx) для развёртывания проекта.
+- **docker-compose.yml**: определение всех необходимых сервисов (API, Celery, Streamlit, PostgreSQL, RabbitMQ, Nginx) для развертывания проекта.
 - **requirements.txt**: пакеты python (FastAPI, uvicorn, celery, SQLAlchemy, psycopg2, и т.п.)
 - **README.md**: описание проекта, инструкция по запуску и настройке
 
@@ -286,7 +284,7 @@ Grafana — pull → Prometheus
 9. __Streamlit__
 
  После запуска docker compose (см п 3) в браузере открываем http://localhost:8501 и в окошко вводим тексты наших отзывов
- 
+
  вот так выглядит саммари 
  ![Alt text](sum.png)
  а вот так - атрибуты

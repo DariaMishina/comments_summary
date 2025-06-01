@@ -30,6 +30,13 @@ def get_summary_vllm(texts):
     logging.info('get_summary_vllm')
     if torch.cuda.is_available():
         text = '\n\n'.join(texts)
+        SYSTEM_PROMPT = (
+            "You are an assistant that analyzes Russian customer reviews for a single product. "
+            "You will be given a set of reviews. Summarize the key points in a concise, human-readable format. "
+            "Use a numbered list with no more than 5 items. Focus only on the product’s features and user experience — "
+            "ignore any mentions of delivery, shipping, or service. Do not return JSON or code, just plain text."
+        )
+
         if len(texts) < 4:
             output = re.sub('\n[\n\ ]*', '\n', text)
         else:
@@ -43,8 +50,7 @@ def get_summary_vllm(texts):
                 "messages": [
                     {
                         "role": "system",
-                        "content": "Ты получишь тексты отзывов покупателей об одном продукте. "
-                                "Выдели кратко не больше 5 основных моментов, которые отмечают покупатели."
+                        "content": SYSTEM_PROMPT
                     },
                     {
                         "role": "user",
@@ -67,34 +73,33 @@ def get_attr_vllm(texts):
         text = '\n\n'.join(texts)
 
         SYSTEM_PROMPT = (
-            "You are an assistant that analyzes Russian customer reviews of a single product. "
-            "Extract every product *attribute* that is mentioned (e.g., «вкус», «запах», «текстура», «цвет»). "
-            "An attribute must be 1‑3 short Russian words, concise and clear. "
-            "For each attribute, list every *characteristic* reviewers use to describe it "
-            "(e.g., «сладкий», «свежий», «мягкий», «сочный»). "
-            "If reviewers say the product is «кислый», «сладкий» or «горький», the attribute is «вкус». "
-            "If they say the product is «с комочками» or «волокнистый», the attribute is «консистенция». "
-            "Extract **all** attributes that appear in the reviews. "
-            "Return **ONLY ONE** JSON array and nothing else — no markdown, no comments. "
-            "Each element must have the keys \"attribute\" and \"characteristic\" (both in Russian). "
-            "Example:\n"
-            "[{\"attribute\":\"вкус\",\"characteristic\":\"сладкий\"}, "
-            "{\"attribute\":\"консистенция\",\"characteristic\":\"волокнистая\"}]"
+            "Ты помощник, который анализирует отзывы на товары и выделяет атрибуты. "
+            "Ниже представлен список отзывов на мандарины:\n"
+            "Очень вкусные, сладкие! Никакие абхазские не нужны))\n"
+            "Огромные, почти безвкусные\n"
+            "Хорошие мандарины, в меру сладкие, без косточек\n"
+            "сладкие, косточек не попалось, кожура тонкая и легко чистится\n"
+            "из этого списка отзывов выделяем атрибуты:\n"
+            "вкус: сладкий, безвкусный\n"
+            "размер: огромный\n"
+            "структура: без косточек\n"
+            "кожура: тонкая и легко чистится\n\n"
+            "Теперь проанализируй отзывы ниже и выдели атрибуты аналогично."
         )
 
         req_data = {
-            "model": "Vikhrmodels/Vikhr-YandexGPT-5-Lite-8B-it",
+            "model": "Vikhr-7B-instruct_0.4_lora_r32_medium_prompt",
             "max_tokens": 400,
-            "temperature": 0.2,
-            "top_k": 1,
-            "stop": ["</s>"],
+            "temperature": 0.1,
+            "top_p": 0.95,
+            "stop": ["</s>", "\n\n"],
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT,},
                 {"role": "user", "content": text}
             ]
         }
         try:
-            response = requests.post('http://vllm:8000/v1/chat/completions', json=req_data)
+            response = requests.post('http://vllm_lora:8000/v1/chat/completions', json=req_data)
             logging.info(f"Response code: {response.status_code}")
             if response.status_code != 200:
                 logging.error(f"Error: {response.text}")
@@ -291,10 +296,10 @@ def compute_bertopic_coherence_values(docs, embeddings, dictionary, tokens, corp
 
     args:
         docs (list of str): список документов для тематического моделирования
-        embeddings
-        dictionary
-        tokens
-        corpus 
+        embeddings (np.ndarray | list[list[float]]): матрица sentence-BERT-эмбеддингов тех же документов (`docs`)
+        dictionary (gensim.corpora.Dictionary): Gensim-словарь, построенный на токенах (`tokens`)
+        tokens (list[list[str]]): список токенизированных документов — результат `vectorizer_model.build_analyzer()(doc)` для каждого текста
+        сorpus (list[list[tuple[int, int]]]): Bag-of-Words-корпус в формате, который принимает `gensim.models.CoherenceModel`
         limit (int): верхняя граница для изменения минимального размера топика
         start (int, optional): начальное значение минимального размера топика. По умолчанию 2
         step (int, optional): шаг изменения минимального размера топика. По умолчанию 3
