@@ -1,6 +1,6 @@
 from celery import Celery
 
-from app.models import text_preproc, get_representative_texts, get_summary, load_stop_words, split_reviews
+from app.models import text_preproc, get_representative_texts, get_summary_vllm, load_stop_words, split_reviews
 from app.database import update_task_status
 from app.config import CELERY_BROKER_URL
 
@@ -35,7 +35,7 @@ def run_model_in_queue(text: str):
             rep_reviews = reviews[:15]
         
         # получаем суммарное описание с использованием LLM (функция get_summary из models.py)
-        summary = get_summary(rep_reviews)
+        summary = get_summary_vllm(rep_reviews)
         
         result = {"summary": summary}
         update_task_status(task_id=task_id, status="completed")

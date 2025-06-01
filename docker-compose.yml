@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   db:
     image: postgres:15
@@ -41,9 +39,17 @@ services:
       DATABASE_URL: postgresql://user:password@postgres_db:5432/mydatabase
       CELERY_BROKER_URL: pyamqp://guest@rabbitmq//
       CELERY_RESULT_BACKEND: rpc://
-      PYTHONPATH: /app  
+      PYTHONPATH: /app
     working_dir: /app
     command: sh -c "celery -A app.tasks worker --loglevel=info --queues=huge_summarize_queue"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 
   app:
     build:
@@ -55,18 +61,47 @@ services:
       - db
       - rabbitmq
     environment:
-      - DATABASE_URL=postgresql://user:password@postgres_db:5432/mydatabase
-      - CELERY_BROKER_URL=pyamqp://guest@rabbitmq//
-      - CELERY_RESULT_BACKEND=rpc://
-      - DEBUG=False # для работы в проде
+      DATABASE_URL: postgresql://user:password@postgres_db:5432/mydatabase
+      CELERY_BROKER_URL: pyamqp://guest@rabbitmq//
+      CELERY_RESULT_BACKEND: rpc://
+      DEBUG: "False"
     ports:
       - "8000:8000"
     volumes:
       - .:/app
-      - ./static:/app/static  # прямое монтирование локальной статики
+      - ./static:/app/static
     networks:
       - app_network
-    command: ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "app.main:app"] # запуск через гуникорн
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app     
+    container_name: streamlit_app
+    restart: always
+    depends_on:
+      - app                                 
+    environment:
+      # адрес API внутри docker‑сети
+      API_URL: "http://app:8000"
+    volumes:
+      - .:/app                            
+    command: >
+      sh -c "streamlit run app/streamlit_app.py
+             --server.port 8501
+             --server.address 0.0.0.0"
+    ports:
+      - "8501:8501"                         # в браузере  http://localhost:8501
+    networks:
+      - app_network
+
 
   vllm:
     image: vllm/vllm-openai:latest
@@ -89,6 +124,33 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+  vllm_lora:
+    container_name: vllm_lora_server
+    image: vllm/vllm-openai:latest
+    command: > 
+      --model Vikhrmodels/Vikhr-7B-instruct_0.4
+      --dtype=bfloat16
+      --tensor_parallel_size=2
+      --enable-lora
+      --max-lora-rank=32
+      --lora-modules='{
+          "name": "Vikhr-7B-instruct_0.4_lora_r32_medium_prompt",
+          "path": "Daria/Vikhr-7B-instruct_0.4_lora_r32_medium_prompt",
+          "base_model_name": "Vikhrmodels/Vikhr-7B-instruct_0.4"
+      }'
+    ipc: host
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    networks:
+      - app_network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
 
   static:
     image: nginx:latest
@@ -117,4 +179,6 @@ volumes:
 
 networks:
   app_network:
+    driver: bridge
+
 
